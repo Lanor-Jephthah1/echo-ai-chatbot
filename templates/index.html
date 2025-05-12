@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECHO AI – Mental Health Buddy</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="chatbox">
+        <h2 class="title">🌿 ECHO AI <span class="subtitle">A voice in your head you can trust. Clean and simple.</span></h2>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button id="darkModeToggle">🌙 Dark Mode</button>
+            <button id="ambientToggle">🎵 Ambient Sound</button>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="How are you feeling today?">
+            <button id="sendBtn">Send</button>
+        </div>
+
+        <div id="typingIndicator" class="typing hidden">Echo AI is typing...</div>
+    </div>
+
+    <!-- Ambient sound -->
+    <audio id="ambientAudio" src="{{ url_for('static', filename='audio/ambient.mp3') }}" loop preload="auto"></audio>
+
+    <script>
+        // DOM Elements
+        const darkModeToggle = document.getElementById("darkModeToggle");
+        const ambientToggle = document.getElementById("ambientToggle");
+        const ambientAudio = document.getElementById("ambientAudio");
+        const sendBtn = document.getElementById("sendBtn");
+        const userInput = document.getElementById("userInput");
+        const messagesEl = document.getElementById("messages");
+        const typingEl = document.getElementById("typingIndicator");
+
+        // Toggle Dark Mode
+        darkModeToggle.addEventListener("click", () => {
+            document.body.classList.toggle("dark-mode");
+            darkModeToggle.textContent = document.body.classList.contains("dark-mode")
+                ? "🌞 Light Mode"
+                : "🌙 Dark Mode";
+        });
+
+        // Toggle Ambient Sound
+        ambientToggle.addEventListener("click", () => {
+            if (ambientAudio.paused) {
+                ambientAudio.play();
+                ambientToggle.textContent = "🔇 Stop Ambient";
+            } else {
+                ambientAudio.pause();
+                ambientToggle.textContent = "🎵 Ambient Sound";
+            }
+        });
+
+        // Sending message logic
+        sendBtn.addEventListener("click", sendMessage);
+        userInput.addEventListener("keypress", e => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        window.addEventListener("load", () => {
+            appendMessage("bot", "Hi, I’m ECHO AI 🌸. I'm here to help you unwind, reflect, or simply have a friendly chat. You can say things like:\n- \"I feel anxious\"\n- \"Tell me something calming\"\n- \"Why do I feel stuck?\"");
+        });
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+            appendMessage("user", text);
+            userInput.value = "";
+            typingEl.classList.remove("hidden");
+
+            // Check for sensitive messages (e.g., feeling low)
+            if (text.toLowerCase().includes("feeling too low") || text.toLowerCase().includes("i'm feeling down")) {
+                typingEl.classList.add("hidden");
+                appendMessage("bot", "I'm really sorry you're feeling this way. It's okay to feel low sometimes. Would you like to talk about it?");
+                return;
+            }
+
+            try {
+                const res = await fetch("/chat", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text })
+                });
+                const { reply } = await res.json();
+                typingEl.classList.add("hidden");
+                await typeBotMessage(reply);
+            } catch (err) {
+                typingEl.classList.add("hidden")
+            }
+        }
+
+        // Append messages to the chat
+        function appendMessage(sender, text) {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = `message ${sender}`;
+            msgDiv.innerHTML = `<div class="bubble">${text}</div>`;
+            messagesEl.appendChild(msgDiv);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // Typing animation for bot
+        function typeBotMessage(text) {
+            return new Promise(resolve => {
+                const msgDiv = document.createElement("div");
+                msgDiv.className = "message bot";
+                const bubble = document.createElement("div");
+                bubble.className = "bubble";
+                msgDiv.appendChild(bubble);
+                messagesEl.appendChild(msgDiv);
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+
+                let idx = 0;
+                const interval = setInterval(() => {
+                    if (idx < text.length) {
+                        bubble.textContent += text[idx++];
+                        messagesEl.scrollTop = messagesEl.scrollHeight;
+                    } else {
+                        clearInterval(interval);
+                        resolve();
+                    }
+                }, 25);
+            });
+        }
+    </script>
+<footer class="footer">
+  <p>Made with 🌿 by Lanor Jephthah Kwame — your chill mental-health buddy creator</p>
+  <p><a href="https://github.com/Lanor-Jephthah1" target="_blank" rel="noopener">View on GitHub</a></p>
+</footer>
+
+</body>
+</html>
